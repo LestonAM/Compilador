@@ -1,0 +1,718 @@
+options{
+STATIC = false;
+DEBUG_LOOKAHEAD = true;
+}
+PARSER_BEGIN(Scanner_1)
+package parser;
+import java.io.*;
+import java.util.*;
+import javax.swing.JOptionPane;
+//import recovery.*;   // importa as classes de recuperação de erros do AS
+
+public class Scanner_1
+{
+AnalizarLexico analizarlexico;
+static int contParseError = 0;   // contador de erros sintáticos
+static boolean debug_recovery = true;          // controla verbose de recuperação de erros
+static boolean trace_enabled1 = false;
+Token lastError = null;          // proximo token null
+
+//public ArrayList<String> Painel3 = new ArrayList<>();
+boolean Menosshort = false; //Saida resumida falso
+public void processa() throws Exception{
+Token t = new Token ();
+
+
+do {
+
+t = getNextToken(); //Obtém o próximo token
+String nomeToken = tokenImage[t.kind]; //guarda o nome do token na string
+//System.out.println(nomeToken + "___" + t); //imprime o token 
+} while(t.kind!=0); //condicao de parada: final do arquivo (constante eof 0 )
+}
+
+public static void main(String args[], String x) throws ParseException, FileNotFoundException {
+//Tratar leitura do arquivo... 
+boolean debug = false;
+String nomeArq = new String(x);
+Scanner_1 parser;
+int i;
+boolean ms = false;
+Scanner_1 lex = new Scanner_1(new FileInputStream(nomeArq));
+try {
+//lex.processa(); //processamento dos lexemas
+//lex.INIT();
+JOptionPane.showMessageDialog(null, "Analise Sintaxica OK");
+}
+catch (Exception e) 
+{
+JOptionPane.showMessageDialog(null, "Analise Sintaxica NOT OK");
+System.out.println("Erro de Token.");
+System.out.println(e.getMessage());
+e.printStackTrace(); 
+}
+catch (Error e)
+{
+System.out.println(e.getMessage()); //Mensagem de erro léxico (em ingles) mostrando linha e coluna
+}
+
+}
+
+static public String im(int x)
+{
+int k;
+String s;
+   s = tokenImage[x];
+   k = s.lastIndexOf("\"");
+   try {s = s.substring(1,k);}
+   catch (StringIndexOutOfBoundsException e)
+   {}
+   return s;
+}
+
+
+boolean eof;    // variável que indica se EOF foi alcançado
+// o método abaixo consome tokens ate alcançar um que pertença ao conjunto
+// de sincronização
+
+void consumeUntil(RecoverySet g,
+                  ParseException e,
+                  String met) throws ParseEOFException,
+                  ParseException
+{
+Token tok;
+
+   if ( debug_recovery) // informação sobre a recuperação
+   {
+       System.out.println();
+       System.out.println("*** " + met + " ***");
+       System.out.println("     Sincronizando com: " + g);
+       analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn"+"\u005cn"+"*** " + met + " ***"+"\u005cn"+"     Sincronizando com: " + g);
+        //analizarlexico.Painel1.add("\u005cn"+"\u005cn"+"*** " + met + " ***"+"\u005cn"+"     Sincronizando com: " + g);
+        //analizarlexico.Lista(analizarlexico.Painel1);
+   }
+
+   if (g == null) throw e; // se o conjunto é null, propaga a exceção
+
+   tok = getToken(1); // pega token corrente
+   while ( ! eof )  // se não chegou ao fim do arquivo
+   {
+        if ( g.contains(tok.kind ) ) //achou um token no conjunto
+        {
+             if ( debug_recovery)
+               System.out.println("     Encontrado token sincronizando: " + im(tok.kind));
+               analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn"+"     Encontrado token sincronizando: " + im(tok.kind));
+        //analizarlexico.Painel1.add("\u005cn"+"     Encontrado token sincronizando: " + im(tok.kind));
+        //analizarlexico.Lista(analizarlexico.Painel1);
+             break;
+        }
+        if (debug_recovery){
+             System.out.println("     Ingnorando token: " + im(tok.kind));
+             analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn"+"\u005cn"+"     Ingnorando token: " + im(tok.kind));
+        //analizarlexico.Painel1.add("\u005cn"+"     Ingnorando token: " + im(tok.kind));
+        //analizarlexico.Lista(analizarlexico.Painel1);
+        }
+        getNextToken();     // pega próximo token       
+        tok = getToken(1);
+        if (tok.kind == EOF && ! g.contains(EOF) ) // fim da entrada?   
+            eof = true;
+    }
+   if ( tok != lastError) //mostra somente se forem erros diferentes
+   {
+        analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn"+"\u005cn"+e.getMessage());
+        //analizarlexico.Painel1.add("\u005cn"+e.getMessage());
+        //analizarlexico.Lista(analizarlexico.Painel1);
+
+        System.out.println(e.getMessage());
+        lastError = tok;
+        contParseError++;  // incrementa número de erros
+   }
+   if ( eof ) throw new ParseEOFException("EOF found prematurely.");
+}
+
+}
+PARSER_END(Scanner_1)
+
+/* ESPECIFICAÇÃO DO ANALISADOR LÉXICO */
+
+TOKEN_MGR_DECLS:
+{
+AnalizarLexico analizarlexico;
+
+static int countLexError = 0;
+int countParserError = 0;
+public int foundLexError()
+{
+   return countLexError;
+}
+public int foundParserError()
+{
+   return countParserError;
+}
+}
+
+
+SKIP : // TOKENS IGNORADOS
+{
+ " "
+| "\r" 
+| "\t" 
+| "\n"
+| <COMENTARIO: "//" (<COM>)* >
+| <COMENTARIOS: "/*" ("\n" | "\r" | <COM>)* "*/" >
+| <#COM: ( ~["\"","\\","\n","\r","\""] | "\\" ( ["n","t","b","r","f","\\","\'","\""] | ( ["\n","\r"] | "\r\n") ) | "\"" )*>
+
+}
+TOKEN : //PALAVRAS RESERVADAS
+{
+< EOL: [" "] > 
+|<PUBLIC: "public">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE PROTECAO: "+image);
+                                     }
+|<NEW: "new">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA: "+image);
+                                     }
+| <STATIC: "static">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE PROTECAO: "+image);
+                                     }
+| <PRIVATE: "private">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE PROTECAO: "+image);
+                                     }
+| <PROTECTED: "protected">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE PROTECAO: "+image);
+                                     }
+| <FINAL: "final">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE PROTECAO: "+image);
+                                     }
+| <NATIVE: "native">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <EXTENDS: "extends">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <ABSTRACT: "abstract">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <RAIZ: "^">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR DE POTENCIA: "+image);
+                                     }
+| <INTERROG: "?">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+
+| <TIO: "~">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <BYTE: "byte">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO PRIMITIVO BYTE: "+image);
+                                     }
+| <LONG: "long">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO PRIMITIVO LONG: "+image);
+                                     }
+| <TRANSIENTE: "transient">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <THREADSAFE: "threadsafe">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <IMPLEMENTS: "implements">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <SYNCHRONIZED: "synchronized">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <TRY: "try">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <CATCH: "catch">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <FINALLY: "finally">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <INTERFACE: "interface">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <CLASS: "class">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <ARGS: "args">{
+                                     System.out.println("Palavra Reservada: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPalavra Reservada: "+image);
+                                     }
+| <VOID: "void">{
+                                     System.out.println("VOID: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO DE RETORNO VOID: "+image);
+                                     }
+| <MAIN: "main">{
+                                     System.out.println("MAIN: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA: "+image);
+                                     }
+
+
+}
+
+
+TOKEN : //PALAVRAS RESERVADAS
+{
+  <PONTO: ".">{
+                                     System.out.println("PONTO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"DELIMITADOR PONTO: "+image+"\n");
+                                     }
+| <DP: ":">{
+                                     System.out.println("DP: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR DP: "+image);
+                                     }
+| <ACHAVE: "{">{
+                                     System.out.println("ACHAVE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR ACHAVE: "+image);
+                                     }
+| <FCHAVE: "}">{
+                                     System.out.println("FCHAVE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR FCHAVE: "+image);
+                                     }
+| <PV: ";">{
+                                     System.out.println("PV: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR PV: "+image);
+                                     }
+| <V: ",">{
+                                     System.out.println("V: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR V: "+image);
+                                     }
+| <AP: "(">{
+                                     System.out.println("AP: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR AP: "+image);
+                                     }
+| <FP: ")">{
+                                     System.out.println("FP: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR FP: "+image);
+                                     }
+| <ACOLCHETE: "[">{
+                                     System.out.println("ACOLCHETE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR ACOLCHETE: "+image);
+                                     }
+| <FCOLCHETE: "]">{
+                                     System.out.println("FCOLCHETE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnDELIMITADOR FCOLCHETE: "+image);
+                                     }
+| <IF: "if" >{
+                                     System.out.println("IF: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA IF: "+image);
+                                     }
+| <ELSE: "else">{
+                                     System.out.println("ELSE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA ELSE: "+image);
+                                     }
+| <FOR: "for">{
+                                     System.out.println("FOR: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA FOR: "+image);
+                                     }
+| <WHILE: "while">{
+                                     System.out.println("WHILE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA WHILE: "+image);
+                                     }
+| <DO: "do">{
+                                     System.out.println("DO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA DO: "+image);
+                                     }
+| <CASE: "case">{
+                                     System.out.println("CASE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA CASE: "+image);
+                                     }
+| <SWITCH: "switch">{
+                                     System.out.println("SWITCH: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA SWITCH: "+image);
+                                     }
+| <BREAK: "break">{
+                                     System.out.println("BREAK: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONT. DE FLUXO BREAK: "+image);
+                                     }
+| <INSTANCEOF: "instanceof">{
+                                     System.out.println("INSTANCEOF: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnINSTANCEOF: "+image);
+                                     }
+| <NULL: "null">{
+                                     System.out.println("NULL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONST. NULL: "+image);
+                                     }
+| <THIS: "this">{
+                                     System.out.println("THIS: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTHIS: "+image);
+                                     }
+| <CHAR: "char">{
+                                     System.out.println("CHAR: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO TEXTUAL CHAR: "+image);
+                                     }
+| <SUPER: "super">{
+                                     System.out.println("SUPER: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA SUPER: "+image);
+                                     }
+| <SHORT: "short">{
+                                     System.out.println("SHORT: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA SHORT: "+image);
+                                     }
+| <THROW: "throw">{
+                                     System.out.println("THROW: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA THROW: "+image);
+                                     }
+| <RETURN: "return">{
+                                     System.out.println("RETURN: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA RETURN: "+image);
+                                     }
+| <CONTINUE: "continue">{
+                                     System.out.println("CONTINUE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONT. DE FLUXO CONTINUE: "+image);
+                                     }
+| <AMPERSAND: "ampersand">{
+                                     System.out.println("AMPERSAND: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA AMPERSAND: "+image);
+                                     }
+| <DEFAUL: "default">{
+                                     System.out.println("DEFAULT: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnPALAVRA RESERVADA DEFAULT: "+image);
+                                     }
+| <INT: "int">{
+                                     System.out.println("INT: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO PRIMITIVO INT: "+image);
+                                     }
+| <FLOAT: "float">{
+                                     System.out.println("FLOAT: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO PRIMITIVO FLOAT: "+image);
+                                     }
+| <BOOLEAN: "boolean">{
+                                     System.out.println("BOOLEAN: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO LOGICO BOOLEAN: "+image);
+                                     }
+| <STRING: "String">{
+                                     System.out.println("STRING: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO TEXTUAL STRING: "+image);
+                                     }
+| <DOUBLE: "double">{
+                                     System.out.println("DOUBLE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO PRIMITIVO DOUBLE: "+image);
+                                     }
+| <INCREMENTAR: "++">{
+                                     System.out.println("INCREMENTO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOP. UNARIO INCREMENTO: "+image);
+                                     }
+| <DECREMENTAR: "--">{
+                                     System.out.println("DECREMENTO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOP. UNARIO DECREMENTO: "+image);
+                                     }
+| <SOMA: "+">{
+                                     System.out.println("OPERADOR ARITMETICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR ARITMETICO SOMA: "+image);
+                                     }
+
+| <SUBTRACAO: "-">{
+                                     System.out.println("OPERADOR ARITMETICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR ARITMETICO SUB: "+image);
+                                     }
+| <MULTIPLICACAO: "*">{
+                                     System.out.println("OPERADOR ARITMETICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR ARITMETICO MULT: "+image);
+                                     }
+| <DIVISAO: "/">{
+                                     System.out.println("OPERADOR ARITMETICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR ARITMETICO DIV: "+image);
+                                     }
+| <RESTO: "%">{
+                                     System.out.println("OPERADOR ARITMETICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR ARITMETICO RESTO: "+image);
+                                     }
+| <MENORQ: "<">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO: "+image);
+                                     }
+| <MAIORQ: ">">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO: "+image);
+                                     }
+| <OP_ATRIBUICAO_IGUAL: "=">{
+                                     System.out.println("OP. ATRIBUICAO IGUAL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOP. ATRIBUICAO IGUAL: "+image);
+                                     }
+| <MAIORIGUAL: ">=">{
+                                     System.out.println("OPERADOR RELACIONAL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR RELACIONAL: "+image);
+                                     }
+| <MENORIGUAL: "<=">{
+                                     System.out.println("OPERADOR RELACIONAL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR RELACIONAL: "+image);
+                                     }
+| <DIFERENTE: "!=">{
+                                     System.out.println("OPERADOR RELACIONAL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR DESIGUALDADE: "+image);
+                                     }
+| <IGUAL: "==">{
+                                     System.out.println("OPERADOR IGUALDADE: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR IGUALDADE: "+image);
+                                     }
+| <E: "&">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO END: "+image);
+                                     }
+| <EE: "&&">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO END: "+image);
+                                     }
+| <OU: "||">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO OU: "+image);
+                                     }
+| <OUU: "|">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO OU: "+image);
+                                     }
+| <NEGACAO: "!">{
+                                     System.out.println("OPERADOR LOGICO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnOPERADOR LOGICO NOT: "+image);
+                                     }
+| <INTEIRO: (<DIGITO>)+>{
+                                     System.out.println("CONST. INTEIRO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONST. INTEIRO: "+image);
+                                     }
+| <DECIMAL: (<DIGITO>)+ "." (<DIGITO>)+>{
+                                     System.out.println("CONST. DECIMAL: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONST. DECIMAL: "+image);
+                                     }
+| <TRUE: "true">{
+                                     System.out.println("BOOLEANO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO BOOLEANO TRUE: "+image);
+                                     }
+| <FALSE: "false">{
+                                     System.out.println("BOOLEANO: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnTIPO BOOLEANO FALSE: "+image);
+                                     }
+| <CONSTANTE_CHAR: "\'" ( ~["\"","\\","\n","\r"] | "\\" ( ["n","t","b","r","f","\\","\""] | ( ["\n","\r"] | "\r\n"))) "\'">{
+                                     System.out.println("CONSTANTE_STRING: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONST. CHAR: "+image);
+                                     }
+
+| <CONSTANTE_STRING: "\"" ( ~["\"","\\","\n","\r"] | "\\" ( ["n","t","b","r","f","\\","\'","\""] | ( ["\n","\r"] | "\r\n")))* "\"">{
+                                     System.out.println("CONSTANTE_STRING: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnCONST. STRING: "+image);
+                                     }
+| <IDENTIFICADOR: (("_")|("$"))* <LETRA>(<LETRA>|<DIGITO> | "_")*(["$"])?>{
+                                     System.out.println("IDENTIFICADOR: "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cnIDENTIFICADOR: "+image);
+                                     }
+
+
+| < #LETRA: ["A"-"Z","a"-"z"] >
+| < #DIGITO : [ "0"-"9" ] >
+}
+
+
+
+
+
+
+// TRATANDO OS ERROS LEXICOS ENCONTRADOS
+SPECIAL_TOKEN : {
+ <ID_INVALIDO: ("@" | "!" | "#" | "*" | "-" | "+" "=" | "&" | <DIGITO>)(<LETRA>|<DIGITO> | "_" | "@")*>{
+                                     System.out.println("IDENTIFICADOR: "+image);
+                                     countLexError++;
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn\u005cnErro lexico -------->  Linha "+ input_stream.getEndLine()+" Coluna "+ input_stream.getEndColumn()+" "+image +"\u005cn");
+                                     }
+|
+<INVALIDO_LEXICO: 
+(~["a"-"z",
+"A"-"Z",
+"0"-"9","\"","(",")","[","]","{","}",";",",",".","=",">","<","!","+","-","*","/","%"," ","\t","\n","\r","\f"
+])+>{System.err.println("Linha "+ input_stream.getEndLine()+" Coluna "+ input_stream.getEndColumn()+" Caractere invalido encontrado: " + image + "TOTAL ERRO "+countLexError);
+                          countLexError++;
+                          System.out.println("Erro Lexico --------> "+image);
+                          analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn\u005cnErro lexico -------->  Linha "+ input_stream.getEndLine()+" Coluna "+ input_stream.getEndColumn()+" "+image +"\u005cn");
+                          }
+|
+<INVALID_CONST:
+"\"" (~["\n","\r","\""])*["\n","\r"]>{System.err.println("Linha "+ input_stream.getEndLine()+" Coluna "+ input_stream.getEndColumn()+" Caractere invalido encontrado \\n: " + image+" Era esperado uma aspa");
+                                     countLexError++;
+                                     System.out.println("Erro Lexico --------> "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn\u005cnErro lexico -------->  Linha "+ input_stream.getEndLine()+" Coluna "+ input_stream.getEndColumn()+" "+image+"\u005cn");
+                                     }
+| <INVALID_CONSTANTE_CHAR: "\'" ( ~["\"","\\","\n","\r"] | "\\" ( ["n","t","b","r","f","\\","\""] | ( ["\n","\r"] | "\r\n")))* "\'">{
+                                     System.out.println("Erro lexico: --------> "+image);
+                                     analizarlexico.jTextArea2.setText(analizarlexico.jTextArea2.getText()+"\u005cn\u005cnErro lexico: --------> "+image);
+                                     }
+
+}
+
+
+
+
+void PROGRAMA()throws ParseEOFException:{
+trace_enabled = trace_enabled1;
+RecoverySet g = First.classe;
+}{
+
+<EOF> |
+
+try{CLASS(null) <EOF> /*| LINHA_CODIGO(g) <EOF> */}
+catch(ParseException e){
+    consumeUntil(g,e,"programa");
+
+}
+[PROGRAMA() | LINHA_CODIGO(g)]
+
+}
+
+
+void CLASS(RecoverySet g)throws ParseEOFException:{}{
+    TIPO_CLASS(g)[TIPO_CLASS(g)] "class" <IDENTIFICADOR> "{" (CRIAR_VARIAVEL(g)";")* METODO(g) "}" }
+    
+    void TIPO_CLASS(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.classe;}{ 
+try{"public" | "protected" | "private" | "abstract" | "static"
+}catch(ParseException e){
+consumeUntil(f,e,"programa");
+}}
+
+//void MAIN(RecoverySet g)throws ParseEOFException:{}{
+//[TIPO_CLASS()[TIPO_CLASS()] "void" "main" "(" "String" [ "[" "]" ] "args" [ "[" "]"] ")" "{" LINHAS_CODIGO(null) "}"] }
+
+void LINHAS_CODIGO(RecoverySet g)throws ParseEOFException:{}{[LINHA_CODIGO(null)]}
+
+void LINHA_CODIGO(RecoverySet g)throws ParseEOFException:{}{LINHA(null)[LINHA_CODIGO(g)]}
+
+void LINHA(RecoverySet g)throws ParseEOFException:{
+}{try{ CRIAR_VARIAVEL(g)<PV> | ATRIBUIR_VALOR_VARIAVEL(g)<PV> | CONDICOES(g) | BUSCAR_FOR(g) | BUSCAR_SWITCH(g) | BUSCAR_WHILE(g) | BUSCAR_DO_WHILE(g)
+}catch(ParseException e){
+consumeUntil(g,e,"Linha");
+}}
+               
+
+
+void CRIAR_VARIAVEL(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.criarvariavel;
+}{try{TIPO(null) <IDENTIFICADOR> OP_COMUMM(g)( <V> <IDENTIFICADOR> OP_COMUMM(g))* 
+}catch(ParseException e){
+consumeUntil(f,e,"criar variavel");
+}
+ }
+
+    void TIPO(RecoverySet g):{}{<INT> |<FLOAT> | <STRING> | <BOOLEAN> | <DOUBLE> | <CHAR> }
+
+    void OP_COMUMM(RecoverySet g)throws ParseEOFException:{}{ <OP_ATRIBUICAO_IGUAL> (VALOR(g) | <IDENTIFICADOR>  | EXP(g) )[OP_COMUM(g)]
+                        |  (OPERADOR(g)(VALOR(g) | <IDENTIFICADOR>  | EXP(g)))*}
+
+
+void METODO(RecoverySet g)throws ParseEOFException:{}{METODOS(g)}
+void METODOS(RecoverySet g)throws ParseEOFException:{}{( INVOCAR_METODO(g))*}
+
+void MAIN(RecoverySet g)throws ParseEOFException:{}{
+ "void" "main" "(" "String" [ "[" "]" ] "args" [ "[" "]"] ")" "{" LINHAS_CODIGO(null) "}" }
+
+
+void INVOCAR_METODO(RecoverySet g)throws ParseEOFException:{}{TIPO_PROTECAO()[TIPO_PROTECAO()] TIPO_RETORNO(g)(<IDENTIFICADOR> "(" (ARGUMENTOS(g))* | "main" "(" "String" [ "[" "]" ] "args" [ "[" "]"] ) ")" <ACHAVE>(COMANDO(g))*<FCHAVE>}
+       void TIPO_PROTECAO():{}{ "public" | "protected" | "private" | "abstract" | "static"}
+    void TIPO_RETORNO(RecoverySet g)throws ParseEOFException:{}{<INT> |<FLOAT> | <STRING> | <VOID> }
+            void ARGUMENTOS(RecoverySet g)throws ParseEOFException:{}{TIPO_RETORNO(g) <IDENTIFICADOR> | <V> ARGUMENTOS(g)}
+                //void COMANDO(RecoverySet g)throws ParseEOFException:{}{CRIAR_VARIAVEL(g)<PV> | ATRIBUIR_VALOR_VARIAVEL(g)<PV> | CONDICOES(g) | BUSCAR_FOR(g) | BUSCAR_SWITCH(g)}
+                void COMANDO(RecoverySet g)throws ParseEOFException:{}{LINHA(g)}
+
+void ATRIBUIR_VALOR_VARIAVEL(RecoverySet g)throws ParseEOFException:{}{OP_COMUM(g)  }
+     void OP_COMUM(RecoverySet g)throws ParseEOFException:{
+    RecoverySet f = First.criarvariavel;
+    }{try{<IDENTIFICADOR> <OP_ATRIBUICAO_IGUAL> (VALOR(null) | <IDENTIFICADOR>  | EXP(null) )[OP_COMUM(g)]
+                        |  (OPERADOR(null)(VALOR(null) | <IDENTIFICADOR>  | EXP(null))) 
+    }catch(ParseException e){
+    consumeUntil(f,e,"Atribuir valor variavel");
+    }
+    }
+        void OPERADOR(RecoverySet g)throws ParseEOFException:{}{<SOMA> | <SUBTRACAO> | <MULTIPLICACAO> | <DIVISAO>} 
+        void VALOR(RecoverySet g)throws ParseEOFException:{}{<INTEIRO> | <DECIMAL> | ("true" | "false") | <CONSTANTE_STRING> | <CONSTANTE_CHAR>}
+        void EXP(RecoverySet g)throws ParseEOFException:{}{<AP> (<IDENTIFICADOR>  | VALOR(g))OP_COMUM(g) <FP>}
+        void INCREMENTO(RecoverySet g)throws ParseEOFException:{}{<INCREMENTAR> | <DECREMENTAR>}
+
+
+
+void CONDICOES(RecoverySet g)throws ParseEOFException:{}{CONDICAO_IF(g)CONDICAO_ELSE(g) }
+    void CONDICAO_IF(RecoverySet g)throws ParseEOFException:{}{CONDICAO_SE(g)}
+    void CONDICAO_SE(RecoverySet g)throws ParseEOFException:{
+    RecoverySet f = First.condicao;}{
+    try{<IF> CONDICAO(null) [<ACHAVE>LINHAS_CODIGO(g)<FCHAVE>]
+    }catch(ParseException e){
+        consumeUntil(f,e,"Condicao if");
+    }}  
+    void CONDICAO(RecoverySet g)throws ParseEOFException:{}{<AP> COND(null) <FP>}
+    void COND(RecoverySet g)throws ParseEOFException:{}{
+    (VALOR(null) | <IDENTIFICADOR>)CONDICIONAL(null)(VALOR(null) | <IDENTIFICADOR>) [OP_LOGICO() COND(null)]}
+
+    void OP_LOGICO():{}{ "&" | "|" | "&&" | "||" }
+
+    void CONDICIONAL(RecoverySet g)throws ParseEOFException:{}{<MAIORQ> | <MENORQ> | <IGUAL> | <MENORIGUAL> | <MAIORIGUAL> | <DIFERENTE>}
+
+    void CONDICAO_ELSE(RecoverySet g)throws ParseEOFException:{
+    RecoverySet f = First.condicao;
+    }{try{CONDICAO_ELSE_IF(null) CONDICAO_NAO(null)
+    }catch(ParseException e){
+    consumeUntil(f,e,"Condicao else");
+    }}
+    void CONDICAO_NAO(RecoverySet g)throws ParseEOFException:{}{[<ELSE> <ACHAVE>LINHAS_CODIGO(g)<FCHAVE>] }
+
+//lookahead é pra reconhecer dois caracteres a frente tava dando conflito com a condicao nao prefixo else 
+    void CONDICAO_ELSE_IF(RecoverySet g)throws ParseEOFException:{}{(LOOKAHEAD(2)CONDICAO_SENAO_SE(null))*} 
+    void CONDICAO_SENAO_SE(RecoverySet g)throws ParseEOFException:{}{<ELSE> <IF> CONDICAO(null)<ACHAVE>LINHAS_CODIGO(g)<FCHAVE>}
+
+
+void BUSCAR_FOR(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.buscarfor;
+}{try{<FOR><AP>INICIAR_FOR(g)<PV>CONDICAO_FOR(null)<PV>INCREMENTO_DECREMENTO(null)<FP><ACHAVE>LINHAS_CODIGO(g)<FCHAVE>
+}catch(ParseException e){
+consumeUntil(f,e,"Buscar For");
+}}
+    void INICIAR_FOR(RecoverySet g)throws ParseEOFException:{}{CRIAR_VARIAVEL(g)}
+    void CONDICAO_FOR(RecoverySet g)throws ParseEOFException:{}{(VALOR(null) | <IDENTIFICADOR>)CONDICIONAL(null)(VALOR(null) | <IDENTIFICADOR>)}
+    void INCREMENTO_DECREMENTO(RecoverySet g)throws ParseEOFException:{}{<IDENTIFICADOR>(<INCREMENTAR> | <DECREMENTAR>)}
+
+
+void BUSCAR_SWITCH(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.buscarswitch;}{
+try{<SWITCH><AP>(<IDENTIFICADOR> | VALOR(null))<FP> <ACHAVE> (CASO(null))* [CASO_DEFAULT(null)] <FCHAVE>
+}catch(ParseException e){
+consumeUntil(f,e,"Buscar Switch");
+}}
+    void CASO(RecoverySet g)throws ParseEOFException:{}{<CASE>(<IDENTIFICADOR> | VALOR(null))<DP> (<ACHAVE> LINHAS_CODIGO(g) <BREAK><PV><FCHAVE> | LINHAS_CODIGO(g) <BREAK><PV>)}
+    void CASO_DEFAULT(RecoverySet g)throws ParseEOFException:{}{<DEFAUL><DP> LINHAS_CODIGO(g)}
+
+
+void BUSCAR_WHILE(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.buscarwhile;
+}{try{<WHILE> CONDICAO(g) <ACHAVE> LINHAS_CODIGO(g)<FCHAVE>
+}catch(ParseException e){
+consumeUntil(f,e,"Buscar While");
+} }
+
+
+void BUSCAR_DO_WHILE(RecoverySet g)throws ParseEOFException:{
+RecoverySet f = First.buscardowhile;
+}{try{<DO> <ACHAVE> LINHAS_CODIGO(g) <FCHAVE> <WHILE> CONDICAO(g)<PV>
+}catch(ParseException e){
+consumeUntil(f,e,"Buscar do While");
+} }
+
